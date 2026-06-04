@@ -1,109 +1,194 @@
 /**
  * components/UI/ChipStack.jsx
  *
- * 3-D stacked poker chips with:
- *   - Edge notch stripes (like real clay chips)
- *   - Per-denomination colors
- *   - Stacking shadow depth
- *   - Entry animation per chip
+ * Realistic circular poker chips viewed from a 3/4 angle.
+ *
+ * Each chip is a circle (not a flat pill) with:
+ *   - Solid colour fill + lighter edge highlight ring
+ *   - Edge notch stripe pattern (clay chip look)
+ *   - Top-face label with denomination
+ *   - Subtle drop shadow beneath the stack
+ *
+ * Stacks are rendered as overlapping circles (each chip offset 4px down
+ * from the previous) so it looks like a real casino stack.
  */
-import React from 'react'
+import React, { memo } from 'react'
 import { formatChips } from '../../utils/cardHelpers'
 
-// Map chip value → visual style
-const CHIP_STYLES = {
-  500:  { bg: '#6c2f8a', edge: '#8b44aa', label: '500', textColor: '#f0d0ff' },
-  100:  { bg: '#1c1c24', edge: '#333344', label: '100', textColor: '#c8c8e0' },
-  25:   { bg: '#1a6ea8', edge: '#2488c8', label: '25',  textColor: '#c0e4ff' },
-  10:   { bg: '#1a7a3e', edge: '#22994e', label: '10',  textColor: '#b0ffcc' },
-  5:    { bg: '#c0392b', edge: '#e04030', label: '5',   textColor: '#ffd0cc' },
-  1:    { bg: '#d4cdb8', edge: '#b8b09a', label: '1',   textColor: '#444' },
+// ── Denomination → chip style ───────────────────────────────────────────────
+const CHIP_DEFS = [
+  { min: 500, bg: '#7a2d9a', ring: '#ac55d4', text: '#f0d0ff', label: '500' },
+  { min: 100, bg: '#1c1c2e', ring: '#3a3a5c', text: '#b0b0d8', label: '100' },
+  { min: 25,  bg: '#1560a0', ring: '#2a88d8', text: '#b8deff', label: '25'  },
+  { min: 10,  bg: '#157040', ring: '#22a05a', text: '#9affc4', label: '10'  },
+  { min: 5,   bg: '#be2e20', ring: '#e84030', text: '#ffc8c0', label: '5'   },
+  { min: 1,   bg: '#cdc7b0', ring: '#e0d8bc', text: '#444',    label: '1'   },
+]
+
+function getChipDef(value) {
+  return CHIP_DEFS.find(d => value >= d.min) ?? CHIP_DEFS[CHIP_DEFS.length - 1]
 }
 
-function getChipStyle(value) {
-  const keys = [500, 100, 25, 10, 5, 1]
-  for (const k of keys) if (value >= k) return CHIP_STYLES[k]
-  return CHIP_STYLES[1]
-}
-
-function chipsToStack(amount) {
+function denomBreakdown(amount) {
   if (!amount || amount <= 0) return []
   const denoms = [500, 100, 25, 10, 5, 1]
-  const stacks = []
-  let remaining = amount
+  const result = []
+  let rem = amount
   for (const d of denoms) {
-    const count = Math.floor(remaining / d)
-    if (count > 0) {
-      stacks.push({ denom: d, count: Math.min(count, 6), style: getChipStyle(d) })
-      remaining -= count * d
+    const n = Math.floor(rem / d)
+    if (n > 0) {
+      result.push({ denom: d, count: Math.min(n, 7), def: getChipDef(d) })
+      rem -= n * d
     }
-    if (stacks.length >= 4) break
+    if (result.length >= 4) break   // max 4 columns
   }
-  return stacks
+  return result
 }
 
-function SingleChip({ style, diameter, index, animate }) {
-  const { bg, edge, label, textColor } = style
+// ── Single circular chip ────────────────────────────────────────────────────
+function Chip({ def, diameter, stackIndex }) {
+  const { bg, ring, text, label } = def
+  const r = diameter / 2
+
+  // Number of edge-stripe segments
+  const stripes = 8
+  const stripeArc = 360 / stripes     // degrees per segment
+  const stripeWidth = 12             // degrees wide (gap is stripeArc - stripeWidth)
+
   return (
-    <div
-      style={{
-        width: diameter,
-        height: Math.round(diameter * 0.24),
-        borderRadius: diameter / 2,
-        background: `linear-gradient(180deg, ${edge} 0%, ${bg} 40%, ${bg} 60%, ${edge} 100%)`,
-        border: `1px solid rgba(0,0,0,0.35)`,
-        boxShadow: [
-          `0 2px 4px rgba(0,0,0,0.5)`,
-          `inset 0 1px 0 rgba(255,255,255,0.2)`,
-          `inset 0 -1px 0 rgba(0,0,0,0.25)`,
-        ].join(', '),
-        position: 'relative',
-        overflow: 'hidden',
-        animation: animate ? `chipSlide 0.28s ${index * 35}ms cubic-bezier(0.22,1.1,0.58,1) both` : 'none',
-        flexShrink: 0,
-      }}
-    >
-      {/* Edge notch stripes */}
-      {[0.18, 0.36, 0.54, 0.72, 0.90].map((pos, i) => (
-        <div key={i} style={{
-          position: 'absolute',
-          left: `${pos * 100}%`,
-          top: 0, bottom: 0,
-          width: '5%',
-          background: 'rgba(255,255,255,0.14)',
-        }} />
-      ))}
-      {/* Shine */}
+    <div style={{
+      width:    diameter,
+      height:   diameter,
+      borderRadius: '50%',
+      position: 'relative',
+      flexShrink: 0,
+      // Main chip face
+      background: `radial-gradient(circle at 38% 35%, ${ring} 0%, ${bg} 45%, color-mix(in srgb,${bg} 70%,#000) 100%)`,
+      // Ring border
+      boxShadow: [
+        `0 0 0 ${Math.max(2, diameter * 0.06)}px ${ring}`,
+        `0 0 0 ${Math.max(3, diameter * 0.09)}px ${bg}`,
+        `0 0 0 ${Math.max(4, diameter * 0.12)}px ${ring}55`,
+        `0 ${stackIndex > 0 ? 2 : 3}px ${stackIndex > 0 ? 3 : 6}px rgba(0,0,0,0.55)`,
+      ].join(', '),
+      overflow: 'hidden',
+    }}>
+      {/* Edge stripe notches — rendered as SVG conic wedges */}
+      <svg
+        width={diameter} height={diameter}
+        style={{ position: 'absolute', inset: 0 }}
+        viewBox={`0 0 ${diameter} ${diameter}`}
+      >
+        {Array.from({ length: stripes }).map((_, i) => {
+          const startDeg = i * stripeArc
+          const endDeg   = startDeg + stripeWidth
+          const toRad    = d => (d - 90) * Math.PI / 180
+          const x1 = r + r * Math.cos(toRad(startDeg))
+          const y1 = r + r * Math.sin(toRad(startDeg))
+          const x2 = r + r * Math.cos(toRad(endDeg))
+          const y2 = r + r * Math.sin(toRad(endDeg))
+          return (
+            <path
+              key={i}
+              d={`M${r},${r} L${x1},${y1} A${r},${r} 0 0,1 ${x2},${y2} Z`}
+              fill="rgba(255,255,255,0.11)"
+            />
+          )
+        })}
+      </svg>
+
+      {/* Top-face shine */}
       <div style={{
-        position: 'absolute', top: 0, left: 0, right: 0, height: '45%',
-        background: 'linear-gradient(180deg, rgba(255,255,255,0.22) 0%, transparent 100%)',
+        position: 'absolute', inset: 0, borderRadius: '50%',
+        background: 'radial-gradient(ellipse 60% 45% at 38% 32%, rgba(255,255,255,0.28) 0%, transparent 70%)',
+        pointerEvents: 'none',
       }} />
+
+      {/* Denomination label */}
+      <div style={{
+        position: 'absolute', inset: 0, borderRadius: '50%',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: Math.max(7, Math.round(diameter * 0.24)),
+        fontFamily: 'var(--font-mono)',
+        fontWeight: 600,
+        color: text,
+        textShadow: '0 1px 2px rgba(0,0,0,0.6)',
+        letterSpacing: '-0.02em',
+        userSelect: 'none',
+      }}>
+        {label}
+      </div>
     </div>
   )
 }
 
-export default function ChipStack({ amount, size = 'md', showLabel = true, animate = false }) {
-  const stacks = chipsToStack(amount)
-  const diam = size === 'sm' ? 20 : size === 'lg' ? 30 : 24
+// ── Stacked column of chips ─────────────────────────────────────────────────
+function ChipColumn({ denom, count, def, diameter }) {
+  const OVERLAP = Math.round(diameter * 0.45)   // px each chip peeks above the previous
+  const totalH  = diameter + (count - 1) * OVERLAP
+
+  return (
+    <div style={{
+      position: 'relative',
+      width:  diameter,
+      height: totalH,
+      flexShrink: 0,
+    }}>
+      {/* Bottom shadow */}
+      <div style={{
+        position: 'absolute',
+        bottom: -4, left: '10%', right: '10%',
+        height: 6, borderRadius: '50%',
+        background: 'rgba(0,0,0,0.35)',
+        filter: 'blur(3px)',
+      }} />
+
+      {/* Stack from bottom to top — bottom chip renders first, sits lowest */}
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} style={{
+          position: 'absolute',
+          // bottom chip at bottom, top chip at top
+          top: (count - 1 - i) * OVERLAP,
+          left: 0,
+          zIndex: i,
+        }}>
+          <Chip def={def} diameter={diameter} stackIndex={i} />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ── Public component ─────────────────────────────────────────────────────────
+const ChipStack = memo(function ChipStack({
+  amount,
+  size     = 'md',
+  showLabel = true,
+  animate  = false,
+}) {
+  const stacks  = denomBreakdown(amount)
+  const diam    = size === 'sm' ? 24 : size === 'lg' ? 36 : 28
 
   if (!amount || amount <= 0) return null
 
+  // Max height across all columns (for the row container)
+  const maxH = stacks.reduce((m, s) => Math.max(m, diam + (s.count - 1) * Math.round(diam * 0.45)), diam)
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+    <div style={{
+      display: 'flex', alignItems: 'flex-end', gap: 4,
+      animation: animate ? 'chipSlide 0.3s cubic-bezier(0.22,1.1,0.58,1) both' : 'none',
+    }}>
       {/* Chip columns */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3 }}>
-        {stacks.map((stack, si) => (
-          <div key={si} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-            {Array.from({ length: stack.count }).map((_, ci) => (
-              <SingleChip
-                key={ci}
-                style={stack.style}
-                diameter={diam}
-                index={si * 6 + ci}
-                animate={animate}
-              />
-            ))}
-          </div>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: maxH }}>
+        {stacks.map((s, i) => (
+          <ChipColumn
+            key={i}
+            denom={s.denom}
+            count={s.count}
+            def={s.def}
+            diameter={diam}
+          />
         ))}
       </div>
 
@@ -113,12 +198,16 @@ export default function ChipStack({ amount, size = 'md', showLabel = true, anima
           fontFamily: 'var(--font-mono)',
           fontSize: size === 'sm' ? 11 : size === 'lg' ? 15 : 13,
           color: 'var(--gold-light)',
-          fontWeight: 500,
+          fontWeight: 600,
           letterSpacing: '0.03em',
+          lineHeight: 1,
+          paddingBottom: 2,
         }}>
           {formatChips(amount)}
         </span>
       )}
     </div>
   )
-}
+})
+
+export default ChipStack
