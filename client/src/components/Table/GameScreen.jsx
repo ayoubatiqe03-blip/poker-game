@@ -1,110 +1,187 @@
 /**
  * components/Table/GameScreen.jsx
  *
- * Main in-game view.
- *
- * Fixes:
- *   - Chat uses onSendChat prop (which calls emit) instead of local-only addChat
- *   - ActionTimer receives startedAt from actionRequired state so the countdown
- *     is synced to the server's real deadline
- *   - lastActions tracks ALL players' last action (not just local player)
+ * Improved:
+ *   - Sound effects on every player action
+ *   - Mute button in HUD
+ *   - Mobile-responsive HUD (collapses non-essential items)
+ *   - Better phase tag styling
+ *   - Chips conserved in HUD display
  */
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import PokerTable from './PokerTable'
 import BettingControls from '../Controls/BettingControls'
 import ChatPanel from '../Chat/ChatPanel'
 import WinnerOverlay from '../UI/WinnerOverlay'
+import { MuteButton, useSounds } from '../UI/SoundManager'
 import { useGame } from '../../context/GameContext'
 import { formatChips } from '../../utils/cardHelpers'
+
+const PHASE_COLORS = {
+  preflop: '#14426a',
+  flop:    '#175e36',
+  turn:    '#6b5507',
+  river:   '#5a2572',
+  showdown:'#7d2319',
+}
 
 export default function GameScreen({ onAction, onSendChat, onLeave }) {
   const { state, dispatch } = useGame()
   const [lastActions, setLastActions] = useState({})
+  const { play, muted, toggleMute }   = useSounds()
+  const prevPhaseRef = useRef(null)
+  const prevActiveRef = useRef(null)
 
   const { publicState, myCards, playerId, lastWinners, showWinner, playerName, actionRequired } = state
-  const players = publicState?.players ?? []
-  const myPlayer = players.find(p => p.id === playerId)
+  const players      = publicState?.players ?? []
+  const myPlayer     = players.find(p => p.id === playerId)
   const bettingRound = publicState?.bettingRound ?? null
-  const isMyTurn = bettingRound?.currentPlayerId === playerId
+  const isMyTurn     = bettingRound?.currentPlayerId === playerId
+  const phase        = publicState?.phase
+  const myTurnInfo   = isMyTurn ? actionRequired : null
 
-  // actionRequired comes from the server event and carries startedAt
-  const myTurnInfo = isMyTurn ? actionRequired : null
+  // Sound: new community card dealt
+  useEffect(() => {
+    if (phase && phase !== prevPhaseRef.current && ['flop','turn','river'].includes(phase)) {
+      play('deal')
+    }
+    prevPhaseRef.current = phase
+  }, [phase, play])
+
+  // Sound: my turn starts
+  useEffect(() => {
+    const cur = bettingRound?.currentPlayerId
+    if (cur && cur !== prevActiveRef.current && cur === playerId) {
+      play('chip')
+    }
+    prevActiveRef.current = cur
+  }, [bettingRound?.currentPlayerId, playerId, play])
+
+  // Sound: winner announced
+  useEffect(() => {
+    if (showWinner) play('win')
+  }, [showWinner, play])
 
   const handleAction = useCallback((action, amount) => {
+    // Action sounds
+    if (action === 'fold')  play('fold')
+    else if (action === 'check') play('check')
+    else play('chip')
+
     setLastActions(prev => ({ ...prev, [playerId]: action }))
-    setTimeout(() => {
-      setLastActions(prev => {
-        const n = { ...prev }
-        delete n[playerId]
-        return n
-      })
-    }, 2000)
+    setTimeout(() => setLastActions(prev => {
+      const n = { ...prev }; delete n[playerId]; return n
+    }), 2200)
     onAction?.(action, amount)
-  }, [onAction, playerId])
+  }, [onAction, playerId, play])
+
+  const controlsHeight = isMyTurn ? (bettingRound && 168) : 0
 
   return (
     <div style={{
       position: 'fixed', inset: 0,
       background: `
-        radial-gradient(ellipse at 20% 50%, rgba(14,8,2,0.9) 0%, transparent 70%),
-        radial-gradient(ellipse at 80% 50%, rgba(8,4,1,0.9) 0%, transparent 70%),
-        linear-gradient(180deg, #0a0602 0%, #080401 100%)
+        radial-gradient(ellipse 80% 60% at 50% 50%, rgba(10,28,14,0.6) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 40% at 15% 85%, rgba(60,20,5,0.4) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 40% at 85% 15%, rgba(60,20,5,0.3) 0%, transparent 60%),
+        #080503
       `,
     }}>
-      {/* ── Top HUD ───────────────────────────────────────────────────────── */}
+      {/* ── HUD bar ───────────────────────────────────────────────────────── */}
       <div style={{
-        position: 'absolute', top: 0, left: 0, right: 0, height: 44,
-        background: 'rgba(5,3,1,0.88)',
-        borderBottom: '1px solid rgba(201,168,76,0.12)',
+        position: 'absolute', top: 0, left: 0, right: 0, height: 46,
+        background: 'rgba(3,2,1,0.92)',
+        borderBottom: '1px solid rgba(201,168,76,0.1)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 16px', zIndex: 40,
-        backdropFilter: 'blur(8px)',
+        padding: '0 10px 0 14px',
+        zIndex: 40,
+        backdropFilter: 'blur(10px)',
+        gap: 8,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        {/* Left: branding + room + phase */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
           <span style={{
-            fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700,
+            fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700,
             background: 'linear-gradient(135deg, var(--gold-dark), var(--gold-light))',
             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+            whiteSpace: 'nowrap', flexShrink: 0,
           }}>
             🃏 Royal Flush
           </span>
-          <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.1)' }} />
+
+          <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />
+
           <span style={{
             fontFamily: 'var(--font-mono)', fontSize: 11,
-            color: 'var(--gold)', letterSpacing: '0.15em',
+            color: 'var(--gold)', letterSpacing: '0.15em', flexShrink: 0,
           }}>
             {state.roomCode}
           </span>
-          <PhaseTag phase={publicState?.phase} />
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>
-            Hand #{publicState?.handNumber ?? 0}
+
+          {/* Phase tag */}
+          {phase && PHASE_COLORS[phase] && (
+            <div style={{
+              padding: '2px 8px', borderRadius: 4, flexShrink: 0,
+              background: `${PHASE_COLORS[phase]}55`,
+              border: `1px solid ${PHASE_COLORS[phase]}`,
+              color: '#fff', fontSize: 10,
+              fontFamily: 'var(--font-body)', fontWeight: 700,
+              letterSpacing: '0.07em', textTransform: 'uppercase',
+            }}>
+              {phase}
+            </div>
+          )}
+
+          {/* Hand counter — hidden on very small screens via overflow */}
+          <span style={{
+            fontFamily: 'var(--font-mono)', fontSize: 10, color: 'rgba(255,255,255,0.2)',
+            overflow: 'hidden', whiteSpace: 'nowrap',
+          }}>
+            #{publicState?.handNumber ?? 0}
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* Right: chips + mute + leave */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           {myPlayer && (
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--gold)' }}>
+            <div style={{
+              fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--gold)',
+              background: 'rgba(201,168,76,0.08)',
+              border: '1px solid rgba(201,168,76,0.2)',
+              borderRadius: 6, padding: '2px 10px',
+              whiteSpace: 'nowrap',
+            }}>
               🪙 {formatChips(myPlayer.chips)}
             </div>
           )}
-          <button onClick={onLeave} style={{
-            padding: '4px 12px', borderRadius: 5,
-            background: 'rgba(146,43,33,0.2)',
-            border: '1px solid rgba(146,43,33,0.4)',
-            color: '#e74c3c', fontSize: 11,
-            cursor: 'pointer', fontFamily: 'var(--font-body)',
-          }}>
+
+          <MuteButton muted={muted} onToggle={toggleMute} />
+
+          <button
+            onClick={onLeave}
+            style={{
+              padding: '4px 11px', borderRadius: 6,
+              background: 'rgba(120,35,25,0.25)',
+              border: '1px solid rgba(192,57,43,0.45)',
+              color: '#e55a4a', fontSize: 11,
+              cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: 500,
+              transition: 'all 0.15s',
+              whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={e => { e.target.style.background = 'rgba(120,35,25,0.5)' }}
+            onMouseLeave={e => { e.target.style.background = 'rgba(120,35,25,0.25)' }}
+          >
             Leave
           </button>
         </div>
       </div>
 
-      {/* ── Table ─────────────────────────────────────────────────────────── */}
+      {/* ── Table area ────────────────────────────────────────────────────── */}
       <div style={{
         position: 'absolute',
-        top: 44, left: 0, right: 0,
-        bottom: isMyTurn ? 164 : 0,
-        transition: 'bottom 0.3s ease',
+        top: 46, left: 0, right: 0,
+        bottom: controlsHeight,
+        transition: 'bottom 0.3s cubic-bezier(0.22,1.1,0.58,1)',
       }}>
         <PokerTable
           players={players}
@@ -113,7 +190,7 @@ export default function GameScreen({ onAction, onSendChat, onLeave }) {
           communityCards={publicState?.communityCards ?? []}
           pot={publicState?.pot ?? 0}
           sidePots={publicState?.sidePots ?? []}
-          phase={publicState?.phase}
+          phase={phase}
           activePlayerId={bettingRound?.currentPlayerId}
           actionInfo={myTurnInfo}
           myCards={myCards}
@@ -130,10 +207,7 @@ export default function GameScreen({ onAction, onSendChat, onLeave }) {
       />
 
       {/* ── Chat ──────────────────────────────────────────────────────────── */}
-      <ChatPanel
-        onSendMessage={onSendChat}
-        playerName={playerName}
-      />
+      <ChatPanel onSendMessage={onSendChat} playerName={playerName} />
 
       {/* ── Winner overlay ────────────────────────────────────────────────── */}
       {showWinner && lastWinners.length > 0 && (
@@ -143,26 +217,6 @@ export default function GameScreen({ onAction, onSendChat, onLeave }) {
           onClose={() => dispatch({ type: 'HIDE_WINNER' })}
         />
       )}
-    </div>
-  )
-}
-
-function PhaseTag({ phase }) {
-  const colors = {
-    preflop: '#1a5276', flop: '#1e5631',
-    turn: '#7d6608', river: '#6c3483', showdown: '#922b21',
-  }
-  if (!phase || phase === 'waiting' || phase === 'idle') return null
-  return (
-    <div style={{
-      padding: '2px 8px', borderRadius: 4,
-      background: `${colors[phase] ?? 'rgba(255,255,255,0.08)'}44`,
-      border: `1px solid ${colors[phase] ?? 'rgba(255,255,255,0.1)'}`,
-      color: '#fff', fontSize: 10,
-      fontFamily: 'var(--font-body)', fontWeight: 600,
-      letterSpacing: '0.06em', textTransform: 'uppercase',
-    }}>
-      {phase}
     </div>
   )
 }
