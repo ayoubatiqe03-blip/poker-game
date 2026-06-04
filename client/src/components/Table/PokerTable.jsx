@@ -1,132 +1,176 @@
 /**
  * components/Table/PokerTable.jsx
  *
- * Fixes:
- *   1. Dealer resolution: `dealerIndex` is an index into the server's players
- *      array, not into the client's reordered `orderedPlayers` display array.
- *      We resolve the actual dealer player by id before checking isDealer.
- *   2. orderedPlayers: when myPlayerId is not found (spectator / reconnecting),
- *      falls back to server order rather than crashing.
- *   3. Empty seats: always render all 9 slots so the table doesn't reflow.
+ * Improved: richer multi-layer felt, deep wood grain, stitching, ambient lighting.
+ * All game logic (seat positions, dealer resolution) unchanged.
  */
 import React, { useRef } from 'react'
 import PlayerSeat from '../Player/PlayerSeat'
 import CommunityCards from './CommunityCards'
 
-// [left%, top%] within the outer container for each of the 9 seat slots
 const SEAT_POSITIONS = [
-  null,           // index 0 unused
-  [50,   91],     // 1  bottom-center (hero)
-  [18,   80],     // 2  bottom-left
-  [4,    52],     // 3  left
-  [14,   22],     // 4  top-left
-  [35,   8],      // 5  top-center-left
-  [65,   8],      // 6  top-center-right
-  [86,   22],     // 7  top-right
-  [96,   52],     // 8  right
-  [82,   80],     // 9  bottom-right
+  null,
+  [50,   91],   // 1  bottom-center (hero)
+  [18,   80],   // 2  bottom-left
+  [4,    52],   // 3  left
+  [14,   22],   // 4  top-left
+  [35,    8],   // 5  top-center-left
+  [65,    8],   // 6  top-center-right
+  [86,   22],   // 7  top-right
+  [96,   52],   // 8  right
+  [82,   80],   // 9  bottom-right
 ]
 
 export default function PokerTable({
-  players = [],
-  myPlayerId,
-  dealerIndex = 0,
-  communityCards = [],
-  pot = 0,
-  sidePots = [],
-  phase,
-  activePlayerId,
-  actionInfo,
-  myCards = [],
-  lastActions = {},
+  players = [], myPlayerId, dealerIndex = 0,
+  communityCards = [], pot = 0, sidePots = [], phase,
+  activePlayerId, actionInfo, myCards = [], lastActions = {},
 }) {
   const containerRef = useRef(null)
-
-  // Resolve who is the dealer by id — dealerIndex is into the server's players array
   const dealerPlayer = players[dealerIndex] ?? null
 
-  // Rotate so the local player always appears in seat 1 (bottom)
-  const myIndex = players.findIndex(p => p.id === myPlayerId)
+  const myIndex    = players.findIndex(p => p.id === myPlayerId)
   const startIndex = myIndex >= 0 ? myIndex : 0
 
-  // Build 9-slot display array; unfilled slots are null
-  const orderedPlayers = Array.from({ length: 9 }, (_, i) => {
-    if (i < players.length) {
-      return players[(startIndex + i) % players.length]
-    }
-    return null
-  })
+  const orderedPlayers = Array.from({ length: 9 }, (_, i) =>
+    i < players.length ? players[(startIndex + i) % players.length] : null
+  )
 
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%', height: '100%', userSelect: 'none' }}>
-      {/* ── Wood rim ─────────────────────────────────────────────────────── */}
+
+      {/* ── Ambient room glow ─────────────────────────────────────────────── */}
       <div style={{
-        position: 'absolute', left: '8%', top: '6%',
-        width: '84%', height: '82%',
-        borderRadius: '50%',
+        position: 'absolute', inset: 0, pointerEvents: 'none',
         background: `
-          radial-gradient(ellipse at 30% 20%, #5c2e0a 0%, transparent 60%),
-          radial-gradient(ellipse at 70% 80%, #3d1f06 0%, transparent 60%),
-          linear-gradient(160deg, #4a2209 0%, #2a1305 40%, #1e0c04 100%)
-        `,
-        boxShadow: `
-          0 0 0 6px #150800,
-          0 20px 60px rgba(0,0,0,0.8),
-          inset 0 2px 4px rgba(255,255,255,0.06),
-          inset 0 -4px 8px rgba(0,0,0,0.5)
+          radial-gradient(ellipse 70% 50% at 50% 50%, rgba(18,80,40,0.12) 0%, transparent 80%),
+          radial-gradient(ellipse 40% 30% at 20% 80%, rgba(120,60,10,0.08) 0%, transparent 60%),
+          radial-gradient(ellipse 40% 30% at 80% 20%, rgba(120,60,10,0.06) 0%, transparent 60%)
         `,
       }} />
 
-      {/* ── Felt ─────────────────────────────────────────────────────────── */}
-      <div className="felt-texture" style={{
-        position: 'absolute', left: '11%', top: '10%',
-        width: '78%', height: '74%', borderRadius: '50%',
-        background: `radial-gradient(ellipse at 50% 40%, var(--felt-highlight) 0%, var(--felt-mid) 40%, var(--felt-dark) 100%)`,
-        boxShadow: `
-          inset 0 4px 30px rgba(0,0,0,0.4),
-          inset 0 -4px 20px rgba(0,0,0,0.3),
-          0 0 0 2px rgba(0,0,0,0.3)
+      {/* ── Outer shadow ring ─────────────────────────────────────────────── */}
+      <div style={{
+        position: 'absolute', left: '6%', top: '4%', width: '88%', height: '88%',
+        borderRadius: '50%',
+        boxShadow: '0 24px 80px rgba(0,0,0,0.85), 0 8px 24px rgba(0,0,0,0.6)',
+        pointerEvents: 'none',
+      }} />
+
+      {/* ── Wood rail — outer edge ─────────────────────────────────────────── */}
+      <div style={{
+        position: 'absolute', left: '7%', top: '5%', width: '86%', height: '86%',
+        borderRadius: '50%',
+        background: `
+          radial-gradient(ellipse at 35% 25%, #7a3e14 0%, transparent 50%),
+          radial-gradient(ellipse at 65% 75%, #6a3010 0%, transparent 50%),
+          repeating-linear-gradient(
+            72deg,
+            rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px,
+            transparent 1px, transparent 12px
+          ),
+          linear-gradient(160deg, #5a2d0c 0%, #3b1c07 35%, #1e0d03 70%, #140900 100%)
         `,
-        overflow: 'hidden',
-      }}>
-        <div style={{ position: 'absolute', inset: 20, borderRadius: '50%', border: '1px solid rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', inset: 28, borderRadius: '50%', border: '1px solid rgba(255,255,255,0.03)', pointerEvents: 'none' }} />
+        boxShadow: `
+          inset 0 3px 6px rgba(255,255,255,0.07),
+          inset 0 -4px 8px rgba(0,0,0,0.5),
+          0 0 0 5px #0e0600
+        `,
+      }} />
+
+      {/* ── Wood rail — inner highlight strip ─────────────────────────────── */}
+      <div style={{
+        position: 'absolute', left: '8.5%', top: '6.5%', width: '83%', height: '83%',
+        borderRadius: '50%',
+        border: '2px solid rgba(255,255,255,0.06)',
+        boxShadow: 'inset 0 1px 3px rgba(255,255,255,0.04)',
+        pointerEvents: 'none',
+      }} />
+
+      {/* ── Felt surface ──────────────────────────────────────────────────── */}
+      <div
+        className="felt-surface"
+        style={{
+          position: 'absolute', left: '11%', top: '10%', width: '78%', height: '76%',
+          borderRadius: '50%',
+          background: `
+            radial-gradient(ellipse at 50% 35%, #196835 0%, #0f4d24 45%, #0a3018 100%)
+          `,
+          boxShadow: `
+            inset 0 6px 40px rgba(0,0,0,0.45),
+            inset 0 -4px 20px rgba(0,0,0,0.3),
+            0 0 0 2px rgba(0,0,0,0.4)
+          `,
+          overflow: 'hidden',
+        }}
+      >
+        {/* Stitching ring — inner */}
+        <div style={{
+          position: 'absolute', inset: 14,
+          borderRadius: '50%',
+          border: '1.5px dashed rgba(255,255,255,0.055)',
+          pointerEvents: 'none', zIndex: 3,
+        }} />
+        {/* Stitching ring — outer */}
+        <div style={{
+          position: 'absolute', inset: 8,
+          borderRadius: '50%',
+          border: '1px solid rgba(255,255,255,0.03)',
+          pointerEvents: 'none', zIndex: 3,
+        }} />
+        {/* Center spotlight */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'radial-gradient(ellipse 60% 40% at 50% 45%, rgba(255,255,255,0.04) 0%, transparent 70%)',
+          pointerEvents: 'none', zIndex: 3,
+        }} />
+        {/* Logo watermark */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 2, pointerEvents: 'none',
+        }}>
+          <div style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: 'clamp(10px, 2vw, 18px)',
+            letterSpacing: '0.25em',
+            color: 'rgba(255,255,255,0.04)',
+            textTransform: 'uppercase',
+            userSelect: 'none',
+            marginTop: '6%',
+          }}>
+            ROYAL FLUSH
+          </div>
+        </div>
       </div>
 
       {/* ── Community cards ───────────────────────────────────────────────── */}
       <div style={{
-        position: 'absolute', left: '50%', top: '46%',
+        position: 'absolute', left: '50%', top: '45%',
         transform: 'translate(-50%, -50%)', zIndex: 15,
       }}>
         <CommunityCards
           communityCards={communityCards}
-          pot={pot}
-          sidePots={sidePots}
-          phase={phase}
+          pot={pot} sidePots={sidePots} phase={phase}
         />
       </div>
 
       {/* ── Player seats ─────────────────────────────────────────────────── */}
       {orderedPlayers.map((player, i) => {
         const seatNum = i + 1
-        const pos = SEAT_POSITIONS[seatNum]
+        const pos     = SEAT_POSITIONS[seatNum]
         if (!pos) return null
-
-        const isMe     = player?.id === myPlayerId
-        const isActive = player?.id === activePlayerId
-        // FIX: compare by player id, not by array index
-        const isDealer = dealerPlayer !== null && player?.id === dealerPlayer.id
 
         return (
           <PlayerSeat
             key={player?.id ?? `empty-${seatNum}`}
             player={player}
             seatNumber={seatNum}
-            isMe={isMe}
-            isActive={isActive}
-            isDealer={isDealer}
-            myCards={isMe ? myCards : []}
-            actionInfo={isActive ? actionInfo : null}
+            isMe={player?.id === myPlayerId}
+            isActive={player?.id === activePlayerId}
+            isDealer={dealerPlayer !== null && player?.id === dealerPlayer.id}
+            myCards={player?.id === myPlayerId ? myCards : []}
+            actionInfo={player?.id === activePlayerId ? actionInfo : null}
             lastAction={player ? lastActions[player.id] : null}
             style={{ left: `${pos[0]}%`, top: `${pos[1]}%` }}
           />
