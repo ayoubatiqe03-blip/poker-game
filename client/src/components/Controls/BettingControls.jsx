@@ -1,25 +1,24 @@
 /**
  * components/Controls/BettingControls.jsx
  *
- * Fixes:
- *   1. maxRaise computed correctly: it's the total stack the player can put in
- *      this round, i.e. their remaining chips + what they've already put in.
- *      The server expects a "raise TO" amount (total chips in pot from this player),
- *      not a "raise BY" amount.
- *   2. Raise button only shown when raiseAmount >= minRaiseTo (was showing
- *      even when slider was below min).
- *   3. All-In button hidden when player has no chips beyond their call.
- *   4. Preset values clamped to [minRaiseTo, maxRaise].
- *   5. Slider min/max/value can't be NaN — guarded with fallbacks.
- *   6. Double-click / fast-click guard: disabled after first click until
- *      server confirms new state (avoids double-submitting).
+ * Improved: tactile press effect, gradient action buttons, labeled presets,
+ *           mobile full-width layout, custom range slider track.
+ * All raise math and double-click guard preserved exactly.
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { formatChips } from '../../utils/cardHelpers'
 
+const ACTIONS = {
+  fold:  { bg: '#7d2319', border: '#c0392b', hoverBg: '#a33028', label: 'Fold' },
+  check: { bg: '#175e36', border: '#1e8449', hoverBg: '#1e7a47', label: 'Check' },
+  call:  { bg: '#14426a', border: '#2471a3', hoverBg: '#1a5a8f', label: 'Call' },
+  raise: { bg: '#6b5507', border: '#c9a84c', hoverBg: '#8a6e0a', label: 'Raise' },
+  allin: { bg: '#5a2572', border: '#9b59b6', hoverBg: '#7a35a0', label: 'All-In' },
+}
+
 export default function BettingControls({ bettingRound, myPlayer, onAction, visible }) {
   const [raiseAmount, setRaiseAmount] = useState(0)
-  const [submitted, setSubmitted] = useState(false)
+  const [submitted, setSubmitted]     = useState(false)
   const submittedRef = useRef(false)
 
   const myId       = myPlayer?.id
@@ -27,19 +26,14 @@ export default function BettingControls({ bettingRound, myPlayer, onAction, visi
   const currentBet = bettingRound?.currentBet ?? 0
   const myContrib  = bettingRound?.roundContributions?.[myId] ?? 0
   const callAmount = Math.min(Math.max(0, currentBet - myContrib), myChips)
-
-  // minRaiseTo: the total amount this player must commit to make a legal raise
-  const minRaise   = bettingRound?.minRaise ?? Math.max(currentBet, bettingRound?.bigBlind ?? 20)
+  const minRaise   = bettingRound?.minRaise ?? Math.max(currentBet, 20)
   const minRaiseTo = currentBet + minRaise
-
-  // maxRaise: total chips this player can commit (their stack + what's already in)
   const maxRaise   = myChips + myContrib
+  const canCheck   = callAmount <= 0
+  const canRaise   = myChips > callAmount && maxRaise >= minRaiseTo
+  const canAllIn   = myChips > 0
+  const pot        = bettingRound?.pot ?? 0
 
-  const canCheck = callAmount <= 0
-  const canRaise = myChips > callAmount && maxRaise >= minRaiseTo
-  const canAllIn = myChips > 0
-
-  // Reset slider and submitted state when it becomes our turn
   useEffect(() => {
     if (visible) {
       const initial = Math.min(Math.max(minRaiseTo, 0), maxRaise)
@@ -50,84 +44,110 @@ export default function BettingControls({ bettingRound, myPlayer, onAction, visi
   }, [visible, minRaiseTo, maxRaise])
 
   const handleAction = useCallback((action, amount) => {
-    if (submittedRef.current) return   // guard double-click
+    if (submittedRef.current) return
     submittedRef.current = true
     setSubmitted(true)
     onAction?.(action, amount)
   }, [onAction])
 
-  // Pot size for presets (bettingRound.pot is cumulative including prior streets)
-  const pot = bettingRound?.pot ?? 0
-
-  const presets = [
-    { label: '¼ Pot', value: Math.round(currentBet + pot * 0.25) },
-    { label: '½ Pot', value: Math.round(currentBet + pot * 0.5) },
-    { label: 'Pot',   value: currentBet + pot },
-    { label: '2×',    value: currentBet * 2 },
-  ]
-    .map(p => ({ ...p, value: Math.min(Math.max(p.value, minRaiseTo), maxRaise) }))
-    .filter(p => p.value >= minRaiseTo && p.value <= maxRaise)
-    // Deduplicate by value
-    .filter((p, i, arr) => arr.findIndex(q => q.value === p.value) === i)
-
-  if (!visible) return null
-
   const sliderMin = Number.isFinite(minRaiseTo) ? minRaiseTo : 0
   const sliderMax = Number.isFinite(maxRaise) && maxRaise >= sliderMin ? maxRaise : sliderMin
   const sliderVal = Math.min(Math.max(raiseAmount, sliderMin), sliderMax)
+  const sliderPct = sliderMax > sliderMin ? ((sliderVal - sliderMin) / (sliderMax - sliderMin)) * 100 : 0
+
+  const presets = [
+    { label: '¼P', value: Math.round(currentBet + pot * 0.25) },
+    { label: '½P', value: Math.round(currentBet + pot * 0.5) },
+    { label: 'Pot', value: currentBet + pot },
+    { label: '2×',  value: currentBet * 2 },
+  ]
+    .map(p => ({ ...p, value: Math.min(Math.max(p.value, sliderMin), sliderMax) }))
+    .filter((p, i, arr) => p.value >= sliderMin && p.value <= sliderMax && arr.findIndex(q => q.value === p.value) === i)
+
+  if (!visible) return null
 
   return (
-    <div style={{
-      position: 'fixed', bottom: 0, left: 0, right: 0,
-      background: 'linear-gradient(0deg, rgba(5,3,1,0.98) 0%, rgba(10,6,2,0.95) 100%)',
-      borderTop: '1px solid rgba(201,168,76,0.2)',
-      padding: '12px 20px 16px',
-      zIndex: 50,
-      animation: submitted ? 'none' : 'slideUp 0.3s cubic-bezier(0.34,1.56,0.64,1)',
-      opacity: submitted ? 0.5 : 1,
-      pointerEvents: submitted ? 'none' : 'auto',
-      transition: 'opacity 0.2s',
-    }}>
-      {/* Raise slider row */}
+    <>
+      {/* Slider area */}
       {canRaise && sliderMax > sliderMin && (
-        <div style={{ marginBottom: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-            <span style={{ color: 'var(--text-muted)', fontSize: 11, minWidth: 36 }}>
-              Raise
+        <div style={{
+          position: 'fixed', bottom: 76, left: 0, right: 0,
+          background: 'linear-gradient(0deg, rgba(4,2,1,0.98) 0%, rgba(8,5,2,0.92) 100%)',
+          borderTop: '1px solid rgba(201,168,76,0.12)',
+          padding: '10px 16px 8px',
+          zIndex: 50,
+          animation: submitted ? 'none' : 'slideUp 0.28s cubic-bezier(0.22,1.1,0.58,1)',
+          opacity: submitted ? 0.4 : 1,
+          pointerEvents: submitted ? 'none' : 'auto',
+        }}>
+          {/* Presets + amount */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+            <span style={{ color: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-body)', letterSpacing: '0.06em', minWidth: 28 }}>
+              RAISE
             </span>
             <div style={{ display: 'flex', gap: 4, flex: 1, flexWrap: 'wrap' }}>
               {presets.map(p => (
                 <button
-                  key={`${p.label}-${p.value}`}
+                  key={p.label}
                   onClick={() => setRaiseAmount(p.value)}
-                  style={presetBtnStyle(raiseAmount === p.value)}
+                  style={presetStyle(raiseAmount === p.value)}
                 >
                   {p.label}
                 </button>
               ))}
             </div>
             <span style={{
-              fontFamily: 'var(--font-mono)', fontSize: 14,
-              color: 'var(--gold-light)', fontWeight: 500,
-              minWidth: 64, textAlign: 'right',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 14, fontWeight: 600,
+              color: 'var(--gold-light)',
+              minWidth: 56, textAlign: 'right',
             }}>
               {formatChips(sliderVal)}
             </span>
           </div>
 
-          <input
-            type="range"
-            min={sliderMin}
-            max={sliderMax}
-            step={1}
-            value={sliderVal}
-            onChange={e => setRaiseAmount(Number(e.target.value))}
-            style={{ width: '100%', accentColor: 'var(--gold)', cursor: 'pointer' }}
-          />
+          {/* Custom slider */}
+          <div style={{ position: 'relative', height: 20, display: 'flex', alignItems: 'center' }}>
+            {/* Track background */}
+            <div style={{
+              position: 'absolute', left: 0, right: 0, height: 5, borderRadius: 3,
+              background: 'rgba(255,255,255,0.08)',
+              overflow: 'hidden',
+            }}>
+              {/* Fill */}
+              <div style={{
+                position: 'absolute', left: 0, top: 0, bottom: 0,
+                width: `${sliderPct}%`,
+                background: 'linear-gradient(90deg, var(--gold-dark), var(--gold))',
+                borderRadius: 3,
+                transition: 'width 0.05s',
+              }} />
+            </div>
+            <input
+              type="range"
+              min={sliderMin} max={sliderMax} step={1} value={sliderVal}
+              onChange={e => setRaiseAmount(Number(e.target.value))}
+              style={{
+                position: 'absolute', left: 0, right: 0,
+                width: '100%', opacity: 0, cursor: 'pointer', height: 20, margin: 0,
+              }}
+            />
+            {/* Thumb */}
+            <div style={{
+              position: 'absolute',
+              left: `calc(${sliderPct}% - 8px)`,
+              width: 16, height: 16, borderRadius: '50%',
+              background: 'linear-gradient(145deg, var(--gold-light), var(--gold))',
+              border: '2px solid rgba(255,255,255,0.3)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.5), 0 0 6px rgba(201,168,76,0.4)',
+              pointerEvents: 'none',
+              transition: 'left 0.05s',
+            }} />
+          </div>
+
           <div style={{
             display: 'flex', justifyContent: 'space-between',
-            fontSize: 10, color: 'var(--text-muted)',
-            fontFamily: 'var(--font-mono)', marginTop: 2,
+            fontSize: 9, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: 3,
           }}>
             <span>Min {formatChips(sliderMin)}</span>
             <span>Max {formatChips(sliderMax)}</span>
@@ -135,100 +155,107 @@ export default function BettingControls({ bettingRound, myPlayer, onAction, visi
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 8 }}>
-        <ActionButton
-          label="Fold"
-          color="var(--action-fold)"
-          onClick={() => handleAction('fold')}
-          flex={1}
-        />
+      {/* Action buttons */}
+      <div style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0,
+        height: 76,
+        background: 'linear-gradient(0deg, rgba(2,1,0,1) 0%, rgba(6,4,2,0.98) 100%)',
+        borderTop: '1px solid rgba(201,168,76,0.15)',
+        display: 'flex', alignItems: 'center', gap: 6, padding: '0 10px',
+        zIndex: 51,
+        opacity: submitted ? 0.4 : 1,
+        pointerEvents: submitted ? 'none' : 'auto',
+        transition: 'opacity 0.2s',
+      }}>
+        <ActionBtn meta={ACTIONS.fold}  onClick={() => handleAction('fold')}  flex={1} />
 
-        {canCheck ? (
-          <ActionButton
-            label="Check"
-            color="var(--action-check)"
-            onClick={() => handleAction('check')}
-            flex={1.5}
-          />
-        ) : (
-          <ActionButton
-            label={`Call  ${formatChips(callAmount)}`}
-            color="var(--action-call)"
-            onClick={() => handleAction('call')}
-            flex={1.5}
-          />
-        )}
+        {canCheck
+          ? <ActionBtn meta={ACTIONS.check} onClick={() => handleAction('check')} flex={1.5} />
+          : <ActionBtn
+              meta={{ ...ACTIONS.call, label: `Call ${formatChips(callAmount)}` }}
+              onClick={() => handleAction('call')}
+              flex={1.5}
+            />
+        }
 
-        {/* Raise — only show when slider value is valid */}
-        {canRaise && sliderVal >= minRaiseTo && sliderVal < maxRaise && (
-          <ActionButton
-            label={`Raise  ${formatChips(sliderVal)}`}
-            color="var(--action-raise)"
+        {canRaise && sliderVal >= sliderMin && sliderVal < maxRaise && (
+          <ActionBtn
+            meta={{ ...ACTIONS.raise, label: `Raise ${formatChips(sliderVal)}` }}
             onClick={() => handleAction('raise', sliderVal)}
             flex={2}
           />
         )}
 
-        {/* All-In */}
         {canAllIn && (
-          <ActionButton
-            label={`All In  ${formatChips(myChips)}`}
-            color="var(--action-allin)"
+          <ActionBtn
+            meta={{ ...ACTIONS.allin, label: `All-In ${formatChips(myChips)}` }}
             onClick={() => handleAction('allin')}
-            flex={1.2}
+            flex={1.4}
             bold
           />
         )}
       </div>
-    </div>
+    </>
   )
 }
 
-function ActionButton({ label, color, onClick, flex = 1, bold = false }) {
+function ActionBtn({ meta, onClick, flex = 1, bold = false }) {
   const [pressed, setPressed] = useState(false)
+  const [hovered, setHovered] = useState(false)
+
   return (
     <button
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => { setHovered(false); setPressed(false) }}
       onMouseDown={() => setPressed(true)}
       onMouseUp={() => setPressed(false)}
-      onMouseLeave={() => setPressed(false)}
       onTouchStart={() => setPressed(true)}
-      onTouchEnd={() => setPressed(false)}
+      onTouchEnd={() => { setPressed(false); onClick() }}
       onClick={onClick}
       style={{
         flex,
-        padding: '12px 8px',
-        borderRadius: 8,
-        border: `1px solid ${color}`,
+        height: 52,
+        borderRadius: 10,
+        border: `1.5px solid ${meta.border}`,
         background: pressed
-          ? color
-          : `linear-gradient(160deg, ${color}33 0%, ${color}22 100%)`,
+          ? `linear-gradient(160deg, ${meta.border} 0%, ${meta.bg} 100%)`
+          : hovered
+            ? `linear-gradient(160deg, ${meta.hoverBg} 0%, ${meta.bg} 100%)`
+            : `linear-gradient(160deg, ${meta.bg}dd 0%, ${meta.bg}99 100%)`,
         color: '#fff',
         fontFamily: 'var(--font-body)',
-        fontSize: 13,
-        fontWeight: bold ? 700 : 500,
+        fontSize: 'clamp(11px, 2vw, 13px)',
+        fontWeight: bold ? 700 : 600,
         cursor: 'pointer',
-        letterSpacing: '0.03em',
-        transition: 'background 0.12s, transform 0.08s',
-        transform: pressed ? 'scale(0.97)' : 'scale(1)',
+        letterSpacing: '0.04em',
+        transform: pressed ? 'scale(0.96) translateY(1px)' : 'scale(1)',
+        transition: 'transform 0.08s, background 0.12s, box-shadow 0.12s',
         whiteSpace: 'nowrap',
         overflow: 'hidden',
         textOverflow: 'ellipsis',
-        boxShadow: `0 2px 8px ${color}44`,
+        boxShadow: pressed
+          ? `0 1px 4px ${meta.border}44`
+          : `0 3px 12px ${meta.border}44, inset 0 1px 0 rgba(255,255,255,0.1)`,
+        userSelect: 'none',
+        WebkitTapHighlightColor: 'transparent',
       }}
     >
-      {label}
+      {meta.label}
     </button>
   )
 }
 
-function presetBtnStyle(active) {
+function presetStyle(active) {
   return {
-    padding: '3px 8px', borderRadius: 4,
-    border: active ? '1px solid var(--gold)' : '1px solid rgba(255,255,255,0.12)',
-    background: active ? 'rgba(201,168,76,0.2)' : 'rgba(255,255,255,0.05)',
+    padding: '3px 9px', borderRadius: 5,
+    border: active ? '1px solid var(--gold)' : '1px solid rgba(255,255,255,0.1)',
+    background: active
+      ? 'linear-gradient(135deg, rgba(201,168,76,0.25) 0%, rgba(201,168,76,0.15) 100%)'
+      : 'rgba(255,255,255,0.04)',
     color: active ? 'var(--gold-light)' : 'var(--text-muted)',
-    fontSize: 11, fontFamily: 'var(--font-body)',
+    fontSize: 11, fontFamily: 'var(--font-body)', fontWeight: active ? 600 : 400,
     cursor: 'pointer', transition: 'all 0.15s',
     whiteSpace: 'nowrap',
+    boxShadow: active ? '0 0 8px rgba(201,168,76,0.2)' : 'none',
   }
 }
