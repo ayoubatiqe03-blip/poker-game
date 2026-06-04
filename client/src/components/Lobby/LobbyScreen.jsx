@@ -1,52 +1,62 @@
 /**
  * components/Lobby/LobbyScreen.jsx
- * Pre-game: create room, join with code, waiting room.
+ *
+ * Improved: richer home screen, better mobile layout, animated room-code card,
+ *           polished waiting-room player list.
+ * All state / prop / event names unchanged.
  */
 import React, { useState } from 'react'
 import { useGame } from '../../context/GameContext'
 
 export default function LobbyScreen({ onCreateRoom, onJoinRoom, onStartGame }) {
   const { state } = useGame()
-  const [mode, setMode] = useState('home') // 'home' | 'create' | 'join'
+  const [mode, setMode]             = useState('home')
   const [playerName, setPlayerName] = useState('')
-  const [roomCode, setRoomCode] = useState('')
-  const [buyIn, setBuyIn] = useState(1000)
+  const [roomCode, setRoomCode]     = useState('')
+  const [buyIn, setBuyIn]           = useState(1000)
   const [smallBlind, setSmallBlind] = useState(10)
-  const [error, setError] = useState('')
+  const [error, setError]           = useState('')
 
-  const inRoom = !!state.roomCode
+  const inRoom   = !!state.roomCode
+  const players  = state.lobbyState?.players ?? []
+  const canStart = state.isHost && players.length >= 2
 
-  // ── Waiting room (after joining) ──────────────────────────────────────────
+  // ── Waiting room ─────────────────────────────────────────────────────────
   if (inRoom) {
-    const lobby = state.lobbyState
-    const players = lobby?.players ?? []
-    const canStart = state.isHost && players.length >= 2
-
     return (
-      <div style={screenStyle}>
-        <div style={cardStyle}>
-          <div style={{ textAlign: 'center', marginBottom: 28 }}>
-            <h1 style={titleStyle}>Waiting Room</h1>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 10 }}>
-              <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Room Code:</span>
-              <div style={{
-                background: 'rgba(201,168,76,0.12)',
-                border: '1px solid var(--gold)',
-                borderRadius: 8, padding: '6px 16px',
-                fontFamily: 'var(--font-mono)',
-                fontSize: 22, fontWeight: 600,
-                color: 'var(--gold-light)',
-                letterSpacing: '0.15em',
+      <Screen>
+        <Card maxWidth={440}>
+          {/* Room code hero */}
+          <div style={{ textAlign: 'center', marginBottom: 24 }}>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.12em', marginBottom: 10 }}>
+              ROOM CODE
+            </div>
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 12,
+              background: 'rgba(201,168,76,0.08)',
+              border: '1.5px solid rgba(201,168,76,0.4)',
+              borderRadius: 12,
+              padding: '10px 22px',
+            }}>
+              <span style={{
+                fontFamily: 'var(--font-mono)', fontSize: 30, fontWeight: 700,
+                letterSpacing: '0.22em',
+                background: 'linear-gradient(135deg, var(--gold-dark), var(--gold-light))',
+                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
               }}>
                 {state.roomCode}
-              </div>
+              </span>
               <button
                 onClick={() => navigator.clipboard?.writeText(state.roomCode)}
-                style={smallBtnStyle}
-                title="Copy room code"
-              >
-                📋
-              </button>
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontSize: 18, opacity: 0.6, padding: 2,
+                  transition: 'opacity 0.15s',
+                }}
+                title="Copy code"
+                onMouseEnter={e => e.target.style.opacity = '1'}
+                onMouseLeave={e => e.target.style.opacity = '0.6'}
+              >📋</button>
             </div>
             <div style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 8 }}>
               Share this code with your friends
@@ -54,42 +64,40 @@ export default function LobbyScreen({ onCreateRoom, onJoinRoom, onStartGame }) {
           </div>
 
           {/* Player list */}
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.1em', marginBottom: 10 }}>
-              PLAYERS ({players.length}/9)
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ marginBottom: 18 }}>
+            <Label>PLAYERS ({players.length}/9)</Label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
               {players.map((p, i) => (
                 <div key={p.id} style={{
                   display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '8px 12px', borderRadius: 8,
+                  padding: '8px 12px', borderRadius: 9,
                   background: p.id === state.playerId
-                    ? 'rgba(201,168,76,0.1)'
-                    : 'rgba(255,255,255,0.04)',
+                    ? 'rgba(201,168,76,0.08)' : 'rgba(255,255,255,0.03)',
                   border: p.id === state.playerId
-                    ? '1px solid rgba(201,168,76,0.3)'
-                    : '1px solid rgba(255,255,255,0.06)',
-                  animation: `fadeIn 0.3s ${i * 60}ms both`,
+                    ? '1px solid rgba(201,168,76,0.25)' : '1px solid rgba(255,255,255,0.05)',
+                  animation: `fadeIn 0.3s ${i * 50}ms both`,
                 }}>
+                  {/* Connection dot */}
                   <div style={{
-                    width: 8, height: 8, borderRadius: '50%',
+                    width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
                     background: p.isConnected ? '#1e8449' : '#922b21',
+                    boxShadow: p.isConnected ? '0 0 5px #1e8449' : 'none',
                   }} />
                   <span style={{ fontFamily: 'var(--font-body)', fontSize: 13, flex: 1 }}>
                     {p.name}
                   </span>
                   {p.isHost && (
                     <span style={{
-                      fontSize: 10, color: 'var(--gold)',
-                      background: 'rgba(201,168,76,0.15)',
-                      padding: '2px 7px', borderRadius: 3,
-                      fontFamily: 'var(--font-body)', letterSpacing: '0.06em',
-                    }}>
-                      HOST
-                    </span>
+                      fontSize: 9, color: 'var(--gold)',
+                      background: 'rgba(201,168,76,0.12)',
+                      border: '1px solid rgba(201,168,76,0.25)',
+                      padding: '1px 7px', borderRadius: 3,
+                      fontFamily: 'var(--font-body)', fontWeight: 700,
+                      letterSpacing: '0.06em',
+                    }}>HOST</span>
                   )}
                   {p.id === state.playerId && (
-                    <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>You</span>
+                    <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)' }}>You</span>
                   )}
                 </div>
               ))}
@@ -97,61 +105,69 @@ export default function LobbyScreen({ onCreateRoom, onJoinRoom, onStartGame }) {
           </div>
 
           {/* Game options summary */}
-          {lobby?.options && (
+          {state.lobbyState?.options && (
             <div style={{
-              padding: '10px 14px', borderRadius: 8,
-              background: 'rgba(255,255,255,0.03)',
+              display: 'flex', gap: 0,
+              borderRadius: 8,
+              overflow: 'hidden',
               border: '1px solid rgba(255,255,255,0.06)',
-              marginBottom: 20,
-              display: 'flex', gap: 20,
+              marginBottom: 18,
             }}>
-              <Stat label="Starting chips" value={lobby.options.startingChips?.toLocaleString()} />
-              <Stat label="Small blind" value={lobby.options.smallBlind} />
-              <Stat label="Max players" value={lobby.options.maxPlayers} />
+              {[
+                ['Starting chips', state.lobbyState.options.startingChips?.toLocaleString()],
+                ['Small blind',    state.lobbyState.options.smallBlind],
+                ['Max players',    state.lobbyState.options.maxPlayers],
+              ].map(([k, v], i, arr) => (
+                <div key={k} style={{
+                  flex: 1, padding: '8px 0', textAlign: 'center',
+                  background: 'rgba(255,255,255,0.02)',
+                  borderRight: i < arr.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+                }}>
+                  <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2, letterSpacing: '0.06em' }}>{k.toUpperCase()}</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--gold)' }}>{v}</div>
+                </div>
+              ))}
             </div>
           )}
 
-          {/* Actions */}
           {state.isHost ? (
-            <button
-              onClick={onStartGame}
-              disabled={!canStart}
-              style={primaryBtnStyle(!canStart)}
-            >
-              {canStart ? '🃏  Start Game' : `Waiting for players (${players.length}/2 min)`}
-            </button>
+            <PrimaryBtn disabled={!canStart} onClick={onStartGame}>
+              {canStart ? '🃏  Start Game' : `Need ${2 - players.length} more player${players.length < 1 ? 's' : ''}`}
+            </PrimaryBtn>
           ) : (
             <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-              Waiting for host to start the game…
-              <div style={{ marginTop: 6, animation: 'activePulse 1.5s infinite' }}>●</div>
+              Waiting for the host to start…
+              <div style={{ marginTop: 8, animation: 'dotPulse 1.4s ease-in-out infinite' }}>●</div>
             </div>
           )}
-        </div>
-      </div>
+        </Card>
+      </Screen>
     )
   }
 
-  // ── Home screen ──────────────────────────────────────────────────────────
+  // ── Home ─────────────────────────────────────────────────────────────────
   if (mode === 'home') {
     return (
-      <div style={screenStyle}>
-        <div style={{ textAlign: 'center', marginBottom: 40, animation: 'fadeIn 0.5s ease' }}>
-          <div style={{ fontSize: 48, marginBottom: 8 }}>🃏</div>
-          <h1 style={{ ...titleStyle, fontSize: 42, marginBottom: 6 }}>Royal Flush</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>
+      <Screen>
+        <div style={{ textAlign: 'center', marginBottom: 44, animation: 'fadeIn 0.5s ease' }}>
+          <div style={{ fontSize: 56, marginBottom: 10, filter: 'drop-shadow(0 0 20px rgba(201,168,76,0.3))' }}>🃏</div>
+          <h1 style={{
+            fontFamily: 'var(--font-display)', fontSize: 'clamp(32px,8vw,46px)', fontWeight: 700,
+            letterSpacing: '0.02em', marginBottom: 6,
+            background: 'linear-gradient(135deg, var(--gold-dark) 0%, var(--gold-pale) 50%, var(--gold) 100%)',
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+          }}>
+            Royal Flush
+          </h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: 14, letterSpacing: '0.05em' }}>
             Private Texas Hold'em for friends
           </p>
         </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, width: '100%', maxWidth: 320 }}>
-          <button style={primaryBtnStyle()} onClick={() => setMode('create')}>
-            Create Private Room
-          </button>
-          <button style={secondaryBtnStyle} onClick={() => setMode('join')}>
-            Join with Code
-          </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', maxWidth: 320 }}>
+          <PrimaryBtn onClick={() => setMode('create')}>Create Private Room</PrimaryBtn>
+          <SecondaryBtn onClick={() => setMode('join')}>Join with Code</SecondaryBtn>
         </div>
-      </div>
+      </Screen>
     )
   }
 
@@ -159,49 +175,39 @@ export default function LobbyScreen({ onCreateRoom, onJoinRoom, onStartGame }) {
   if (mode === 'create') {
     const handleCreate = () => {
       const name = playerName.trim()
-      if (!name) return setError('Enter your name')
-      if (name.length > 16) return setError('Name too long (max 16 chars)')
+      if (!name)           return setError('Enter your name')
+      if (name.length > 20) return setError('Name too long (max 20 chars)')
       setError('')
       onCreateRoom({ playerName: name, options: { startingChips: buyIn, smallBlind } })
     }
-
     return (
-      <div style={screenStyle}>
-        <div style={cardStyle}>
-          <button onClick={() => setMode('home')} style={backBtnStyle}>← Back</button>
-          <h2 style={{ ...titleStyle, marginBottom: 24 }}>Create Room</h2>
+      <Screen>
+        <Card>
+          <BackBtn onClick={() => setMode('home')} />
+          <h2 style={titleStyle}>Create Room</h2>
 
-          <FormField label="Your Name">
-            <input style={inputStyle} value={playerName} onChange={e => setPlayerName(e.target.value)}
-              placeholder="e.g. Vegas Mike" maxLength={16} onKeyDown={e => e.key === 'Enter' && handleCreate()} />
-          </FormField>
+          <Field label="Your Name">
+            <TextInput
+              value={playerName} onChange={e => setPlayerName(e.target.value)}
+              placeholder="e.g. Vegas Mike" maxLength={20}
+              onKeyDown={e => e.key === 'Enter' && handleCreate()}
+            />
+          </Field>
 
-          <FormField label={`Starting Chips: ${buyIn.toLocaleString()}`}>
-            <input type="range" min={100} max={10000} step={100} value={buyIn}
-              onChange={e => setBuyIn(Number(e.target.value))}
-              style={{ width: '100%', accentColor: 'var(--gold)' }} />
-            <div style={rangeLabels}>
-              <span>100</span><span>10,000</span>
-            </div>
-          </FormField>
+          <Field label={`Starting Chips: ${buyIn.toLocaleString()}`}>
+            <RangeInput min={100} max={10000} step={100} value={buyIn} onChange={e => setBuyIn(Number(e.target.value))} />
+            <RangeLabels left="100" right="10,000" />
+          </Field>
 
-          <FormField label={`Small Blind: ${smallBlind}`}>
-            <input type="range" min={1} max={100} step={1} value={smallBlind}
-              onChange={e => setSmallBlind(Number(e.target.value))}
-              style={{ width: '100%', accentColor: 'var(--gold)' }} />
-            <div style={rangeLabels}>
-              <span>1</span><span>100</span>
-            </div>
-          </FormField>
+          <Field label={`Small Blind: ${smallBlind}`}>
+            <RangeInput min={1} max={200} step={1} value={smallBlind} onChange={e => setSmallBlind(Number(e.target.value))} />
+            <RangeLabels left="1" right="200" />
+          </Field>
 
-          {error && <div style={errorStyle}>{error}</div>}
-          {state.error && <div style={errorStyle}>{state.error}</div>}
-
-          <button style={primaryBtnStyle()} onClick={handleCreate}>
-            Create Room
-          </button>
-        </div>
-      </div>
+          {(error || state.error) && <ErrBox msg={error || state.error} />}
+          <PrimaryBtn onClick={handleCreate}>Create Room</PrimaryBtn>
+        </Card>
+      </Screen>
     )
   }
 
@@ -210,38 +216,38 @@ export default function LobbyScreen({ onCreateRoom, onJoinRoom, onStartGame }) {
     const handleJoin = () => {
       const name = playerName.trim()
       const code = roomCode.trim().toUpperCase()
-      if (!name) return setError('Enter your name')
+      if (!name)          return setError('Enter your name')
       if (code.length !== 4) return setError('Room code must be 4 letters')
       setError('')
       onJoinRoom({ playerName: name, roomCode: code })
     }
-
     return (
-      <div style={screenStyle}>
-        <div style={cardStyle}>
-          <button onClick={() => setMode('home')} style={backBtnStyle}>← Back</button>
-          <h2 style={{ ...titleStyle, marginBottom: 24 }}>Join Room</h2>
+      <Screen>
+        <Card>
+          <BackBtn onClick={() => setMode('home')} />
+          <h2 style={titleStyle}>Join Room</h2>
 
-          <FormField label="Room Code">
-            <input
-              style={{ ...inputStyle, letterSpacing: '0.15em', textTransform: 'uppercase', fontSize: 20, textAlign: 'center' }}
-              value={roomCode} onChange={e => setRoomCode(e.target.value.toUpperCase())}
-              placeholder="ABCD" maxLength={4} />
-          </FormField>
+          <Field label="Room Code">
+            <TextInput
+              value={roomCode}
+              onChange={e => setRoomCode(e.target.value.toUpperCase())}
+              placeholder="ABCD" maxLength={4}
+              style={{ letterSpacing: '0.2em', textTransform: 'uppercase', fontSize: 22, textAlign: 'center' }}
+            />
+          </Field>
 
-          <FormField label="Your Name">
-            <input style={inputStyle} value={playerName} onChange={e => setPlayerName(e.target.value)}
-              placeholder="e.g. Lucky Linda" maxLength={16} onKeyDown={e => e.key === 'Enter' && handleJoin()} />
-          </FormField>
+          <Field label="Your Name">
+            <TextInput
+              value={playerName} onChange={e => setPlayerName(e.target.value)}
+              placeholder="e.g. Lucky Linda" maxLength={20}
+              onKeyDown={e => e.key === 'Enter' && handleJoin()}
+            />
+          </Field>
 
-          {error && <div style={errorStyle}>{error}</div>}
-          {state.error && <div style={errorStyle}>{state.error}</div>}
-
-          <button style={primaryBtnStyle()} onClick={handleJoin}>
-            Join Room
-          </button>
-        </div>
-      </div>
+          {(error || state.error) && <ErrBox msg={error || state.error} />}
+          <PrimaryBtn onClick={handleJoin}>Join Room</PrimaryBtn>
+        </Card>
+      </Screen>
     )
   }
 
@@ -250,19 +256,50 @@ export default function LobbyScreen({ onCreateRoom, onJoinRoom, onStartGame }) {
 
 // ── Sub-components ──────────────────────────────────────────────────────────
 
-function Stat({ label, value }) {
+function Screen({ children }) {
   return (
-    <div style={{ flex: 1 }}>
-      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 2 }}>{label}</div>
-      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--gold)' }}>{value}</div>
+    <div style={{
+      position: 'fixed', inset: 0,
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      background: `
+        radial-gradient(ellipse 60% 50% at 25% 30%, rgba(15,35,15,0.6) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 75% 70%, rgba(30,12,4,0.6) 0%, transparent 60%),
+        #080503
+      `,
+      padding: '20px 16px',
+      zIndex: 80,
+    }}>
+      {children}
     </div>
   )
 }
 
-function FormField({ label, children }) {
+function Card({ children, maxWidth = 400 }) {
+  return (
+    <div style={{
+      background: 'linear-gradient(160deg, rgba(16,10,4,0.97) 0%, rgba(10,6,2,0.97) 100%)',
+      border: '1px solid rgba(201,168,76,0.18)',
+      borderRadius: 16,
+      padding: 'clamp(20px,4vw,34px) clamp(20px,5vw,36px)',
+      width: '100%', maxWidth,
+      boxShadow: '0 24px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.02)',
+      animation: 'fadeIn 0.35s ease',
+      position: 'relative',
+    }}>
+      {children}
+    </div>
+  )
+}
+
+function Label({ children }) {
+  return <div style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.1em', marginBottom: 8 }}>{children}</div>
+}
+
+function Field({ label, children }) {
   return (
     <div style={{ marginBottom: 18 }}>
-      <label style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em', marginBottom: 6 }}>
+      <label style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.1em', marginBottom: 7 }}>
         {label.toUpperCase()}
       </label>
       {children}
@@ -270,105 +307,142 @@ function FormField({ label, children }) {
   )
 }
 
-// ── Styles ──────────────────────────────────────────────────────────────────
-
-const screenStyle = {
-  position: 'fixed', inset: 0,
-  display: 'flex', flexDirection: 'column',
-  alignItems: 'center', justifyContent: 'center',
-  background: `
-    radial-gradient(ellipse at 30% 20%, rgba(22,30,10,0.8) 0%, transparent 60%),
-    radial-gradient(ellipse at 70% 80%, rgba(30,14,4,0.8) 0%, transparent 60%),
-    #0a0602
-  `,
-  padding: 20,
-  zIndex: 80,
+function TextInput({ style, ...props }) {
+  return (
+    <input
+      {...props}
+      style={{
+        width: '100%', padding: '10px 13px',
+        borderRadius: 9,
+        background: 'rgba(255,255,255,0.05)',
+        border: '1px solid rgba(255,255,255,0.1)',
+        color: 'var(--text-primary)',
+        fontFamily: 'var(--font-body)', fontSize: 14,
+        outline: 'none',
+        transition: 'border-color 0.2s, box-shadow 0.2s',
+        ...style,
+      }}
+      onFocus={e => {
+        e.target.style.borderColor = 'rgba(201,168,76,0.4)'
+        e.target.style.boxShadow   = '0 0 0 3px rgba(201,168,76,0.1)'
+      }}
+      onBlur={e => {
+        e.target.style.borderColor = 'rgba(255,255,255,0.1)'
+        e.target.style.boxShadow   = 'none'
+      }}
+    />
+  )
 }
 
-const cardStyle = {
-  background: 'linear-gradient(160deg, rgba(18,10,4,0.96) 0%, rgba(12,7,2,0.96) 100%)',
-  border: '1px solid rgba(201,168,76,0.2)',
-  borderRadius: 16,
-  padding: '32px 36px',
-  width: '100%',
-  maxWidth: 400,
-  boxShadow: '0 20px 60px rgba(0,0,0,0.7)',
-  animation: 'fadeIn 0.4s ease',
-  position: 'relative',
+function RangeInput(props) {
+  return (
+    <input
+      type="range"
+      {...props}
+      style={{ width: '100%', accentColor: 'var(--gold)', cursor: 'pointer', height: 4 }}
+    />
+  )
+}
+
+function RangeLabels({ left, right }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: 3 }}>
+      <span>{left}</span><span>{right}</span>
+    </div>
+  )
+}
+
+function PrimaryBtn({ children, onClick, disabled }) {
+  const [hov, setHov] = useState(false)
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        width: '100%', padding: '13px 20px',
+        borderRadius: 10,
+        background: disabled
+          ? 'rgba(255,255,255,0.04)'
+          : hov
+            ? 'linear-gradient(135deg, rgba(201,168,76,0.32) 0%, rgba(201,168,76,0.2) 100%)'
+            : 'linear-gradient(135deg, rgba(201,168,76,0.22) 0%, rgba(201,168,76,0.12) 100%)',
+        border: disabled ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(201,168,76,0.55)',
+        color: disabled ? 'var(--text-muted)' : 'var(--gold-light)',
+        fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 600,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        letterSpacing: '0.04em',
+        transition: 'all 0.18s',
+        boxShadow: disabled ? 'none' : hov ? '0 0 20px rgba(201,168,76,0.2)' : 'none',
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function SecondaryBtn({ children, onClick }) {
+  const [hov, setHov] = useState(false)
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        width: '100%', padding: '13px 20px',
+        borderRadius: 10,
+        background: hov ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.04)',
+        border: '1px solid rgba(255,255,255,0.12)',
+        color: 'var(--text-primary)',
+        fontFamily: 'var(--font-body)', fontSize: 14, fontWeight: 500,
+        cursor: 'pointer', letterSpacing: '0.04em',
+        transition: 'all 0.18s',
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function BackBtn({ onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        position: 'absolute', top: 14, left: 16,
+        background: 'none', border: 'none',
+        color: 'var(--text-muted)', fontSize: 12,
+        cursor: 'pointer', fontFamily: 'var(--font-body)',
+        transition: 'color 0.15s',
+      }}
+      onMouseEnter={e => e.target.style.color = 'var(--text-primary)'}
+      onMouseLeave={e => e.target.style.color = 'var(--text-muted)'}
+    >
+      ← Back
+    </button>
+  )
+}
+
+function ErrBox({ msg }) {
+  return (
+    <div style={{
+      padding: '8px 12px', borderRadius: 7,
+      background: 'rgba(127,36,27,0.2)',
+      border: '1px solid rgba(192,57,43,0.35)',
+      color: '#e55a4a', fontSize: 12,
+      fontFamily: 'var(--font-body)', marginBottom: 14,
+      animation: 'fadeIn 0.2s ease',
+    }}>
+      ⚠ {msg}
+    </div>
+  )
 }
 
 const titleStyle = {
   fontFamily: 'var(--font-display)',
-  fontSize: 28,
-  fontWeight: 700,
+  fontSize: 24, fontWeight: 700,
   background: 'linear-gradient(135deg, var(--gold-dark), var(--gold-light))',
   WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-  letterSpacing: '0.02em',
-}
-
-function primaryBtnStyle(disabled = false) {
-  return {
-    width: '100%', padding: '13px 20px',
-    borderRadius: 8,
-    background: disabled
-      ? 'rgba(255,255,255,0.05)'
-      : 'linear-gradient(135deg, rgba(201,168,76,0.25) 0%, rgba(201,168,76,0.15) 100%)',
-    border: disabled ? '1px solid rgba(255,255,255,0.08)' : '1px solid var(--gold)',
-    color: disabled ? 'var(--text-muted)' : 'var(--gold-light)',
-    fontFamily: 'var(--font-body)',
-    fontSize: 14, fontWeight: 600,
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    letterSpacing: '0.04em',
-    transition: 'all 0.2s',
-  }
-}
-
-const secondaryBtnStyle = {
-  width: '100%', padding: '13px 20px',
-  borderRadius: 8,
-  background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.12)',
-  color: 'var(--text-primary)',
-  fontFamily: 'var(--font-body)',
-  fontSize: 14, fontWeight: 500,
-  cursor: 'pointer',
-  letterSpacing: '0.04em',
-}
-
-const inputStyle = {
-  width: '100%', padding: '10px 12px',
-  borderRadius: 8,
-  background: 'rgba(255,255,255,0.06)',
-  border: '1px solid rgba(255,255,255,0.12)',
-  color: 'var(--text-primary)',
-  fontFamily: 'var(--font-body)', fontSize: 14,
-  outline: 'none',
-  transition: 'border-color 0.2s',
-}
-
-const backBtnStyle = {
-  position: 'absolute', top: 16, left: 20,
-  background: 'none', border: 'none',
-  color: 'var(--text-muted)', fontSize: 13,
-  cursor: 'pointer', fontFamily: 'var(--font-body)',
-}
-
-const errorStyle = {
-  padding: '8px 12px', borderRadius: 6,
-  background: 'rgba(146,43,33,0.2)',
-  border: '1px solid rgba(146,43,33,0.4)',
-  color: '#e74c3c', fontSize: 12,
-  marginBottom: 14,
-  fontFamily: 'var(--font-body)',
-}
-
-const smallBtnStyle = {
-  background: 'none', border: 'none',
-  cursor: 'pointer', fontSize: 16, padding: 4,
-}
-
-const rangeLabels = {
-  display: 'flex', justifyContent: 'space-between',
-  fontSize: 10, color: 'var(--text-muted)',
-  fontFamily: 'var(--font-mono)', marginTop: 2,
+  marginBottom: 22, marginTop: 16,
 }
