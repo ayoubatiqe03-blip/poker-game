@@ -1,65 +1,68 @@
+/* ─── Google Fonts ───────────────────────────────────────────────────────── */
+/* Loaded via index.html: Playfair Display, DM Mono, DM Sans */
+
 /* ─── Design Tokens ──────────────────────────────────────────────────────── */
 :root {
-  /* Felt & Table */
-  --felt-dark:      #0d3d1f;
-  --felt-mid:       #115c2d;
-  --felt-light:     #166b35;
-  --felt-highlight: #1a7d3e;
-  --table-rim:      #3d1f0a;
-  --table-rim-dark: #1e0e04;
-  --table-shadow:   rgba(0,0,0,0.7);
+  /* Felt */
+  --felt-dark:        #0a3018;
+  --felt-mid:         #0e4a22;
+  --felt-light:       #12592a;
+  --felt-highlight:   #165f30;
+  --felt-stitch:      rgba(255,255,255,0.06);
 
-  /* Room background */
-  --room-bg:        #0f0a06;
-  --wood-dark:      #1a0c04;
-  --wood-mid:       #2a1508;
+  /* Wood rim */
+  --wood-1:           #5a2d0c;
+  --wood-2:           #3b1c07;
+  --wood-3:           #1e0d03;
+  --wood-edge:        #100800;
 
-  /* Gold accents */
-  --gold:           #c9a84c;
-  --gold-light:     #e8cb7a;
-  --gold-dark:      #8a6d28;
-  --gold-glow:      rgba(201,168,76,0.25);
+  /* Room */
+  --room-bg:          #080503;
+
+  /* Gold */
+  --gold:             #c9a84c;
+  --gold-light:       #eacf7e;
+  --gold-dark:        #8a6d28;
+  --gold-pale:        #f5e9c0;
+  --gold-glow:        rgba(201,168,76,0.3);
+  --gold-glow-strong: rgba(201,168,76,0.55);
 
   /* Cards */
-  --card-face:      #faf7f0;
-  --card-back:      #1a237e;
-  --card-shadow:    rgba(0,0,0,0.5);
-  --suit-red:       #c0392b;
-  --suit-black:     #1a1a1a;
+  --card-face:        #fdfaf3;
+  --card-cream:       #f8f2e4;
+  --card-back-1:      #1a237e;
+  --card-back-2:      #0d1257;
+  --card-shadow:      rgba(0,0,0,0.55);
+  --suit-red:         #cc2200;
+  --suit-red-dark:    #990000;
+  --suit-black:       #111111;
 
-  /* Chips by denomination */
-  --chip-white:     #f5f5f0;
-  --chip-red:       #c0392b;
-  --chip-blue:      #2471a3;
-  --chip-green:     #1e8449;
-  --chip-black:     #1c2833;
-  --chip-purple:    #7d3c98;
+  /* Chips */
+  --chip-white:   #e8e4d8;
+  --chip-red:     #c0392b;
+  --chip-blue:    #1a6ea8;
+  --chip-green:   #1a7a3e;
+  --chip-black:   #1c1c24;
+  --chip-purple:  #6c2f8a;
+  --chip-orange:  #c45e0a;
 
   /* UI */
-  --text-primary:   #f0e8d5;
-  --text-muted:     #8a7a60;
-  --text-gold:      var(--gold-light);
-  --panel-bg:       rgba(10,6,2,0.85);
-  --panel-border:   rgba(201,168,76,0.2);
-  --input-bg:       rgba(255,255,255,0.06);
+  --text-primary: #efe5cc;
+  --text-muted:   #7a6a50;
+  --panel-bg:     rgba(8,5,2,0.88);
+  --panel-border: rgba(201,168,76,0.18);
 
-  /* Action colors */
-  --action-fold:    #922b21;
-  --action-call:    #1a5276;
-  --action-raise:   #7d6608;
-  --action-check:   #1e8449;
-  --action-allin:   #6c3483;
+  /* Actions */
+  --action-fold:  #7d2319;
+  --action-call:  #14426a;
+  --action-raise: #6b5507;
+  --action-check: #175e36;
+  --action-allin: #5a2572;
 
   /* Fonts */
-  --font-display:   'Playfair Display', serif;
-  --font-mono:      'DM Mono', monospace;
-  --font-body:      'DM Sans', sans-serif;
-
-  /* Radii */
-  --radius-card:    8px;
-  --radius-chip:    50%;
-  --radius-panel:   12px;
-  --radius-btn:     6px;
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-mono:    'DM Mono', 'Courier New', monospace;
+  --font-body:    'DM Sans', system-ui, sans-serif;
 }
 
 /* ─── Reset ──────────────────────────────────────────────────────────────── */
@@ -75,17 +78,8 @@ body {
   font-family: var(--font-body);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
-}
-
-/* ─── Felt texture overlay (SVG noise) ───────────────────────────────────── */
-.felt-texture::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
-  pointer-events: none;
-  z-index: 1;
+  -moz-osx-font-smoothing: grayscale;
+  touch-action: manipulation;
 }
 
 /* ─── Scrollbar ──────────────────────────────────────────────────────────── */
@@ -93,60 +87,182 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--gold-dark); border-radius: 2px; }
 
+/* ─── Perspective for 3D cards ───────────────────────────────────────────── */
+.card-scene {
+  perspective: 600px;
+  transform-style: preserve-3d;
+}
+
 /* ─── Animations ─────────────────────────────────────────────────────────── */
+
+/* Card deals in from top center with a satisfying arc */
 @keyframes dealCard {
-  from { transform: translate(-50%, -200%) rotate(-15deg) scale(0.5); opacity: 0; }
-  to   { transform: translate(0,0) rotate(0deg) scale(1); opacity: 1; }
+  0%   { transform: translate(0, -220%) rotate(-18deg) scale(0.45); opacity: 0; filter: blur(2px); }
+  60%  { opacity: 1; filter: blur(0); }
+  80%  { transform: translate(0, 4%) rotate(1deg) scale(1.03); }
+  100% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
 }
 
-@keyframes flipCard {
-  0%   { transform: rotateY(0deg); }
-  50%  { transform: rotateY(90deg); }
-  100% { transform: rotateY(0deg); }
+/* Community card slides in from above pot area */
+@keyframes dealCommunity {
+  0%   { transform: translateY(-60px) scale(0.8); opacity: 0; }
+  60%  { opacity: 1; }
+  85%  { transform: translateY(3px) scale(1.02); }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
 }
 
+/* 3D flip for card reveal */
+@keyframes cardFlipIn {
+  0%   { transform: rotateY(-90deg) scale(0.85); opacity: 0.4; }
+  100% { transform: rotateY(0deg)   scale(1);    opacity: 1; }
+}
+
+/* Chip slides up into pot */
 @keyframes chipSlide {
-  from { transform: scale(0) translateY(-20px); opacity: 0; }
-  to   { transform: scale(1) translateY(0); opacity: 1; }
+  0%   { transform: translateY(18px) scale(0.7); opacity: 0; }
+  70%  { transform: translateY(-3px) scale(1.05); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
 }
 
-@keyframes pulse {
-  0%, 100% { box-shadow: 0 0 0 0 var(--gold-glow); }
-  50%       { box-shadow: 0 0 0 12px transparent; }
+/* Active player glow pulse */
+@keyframes activePulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--gold-glow), 0 0 18px rgba(201,168,76,0.2); }
+  50%       { box-shadow: 0 0 0 6px transparent,    0 0 32px rgba(201,168,76,0.45); }
+}
+
+/* Active player ring expand */
+@keyframes ringPulse {
+  0%   { transform: translate(-50%,-50%) scale(0.94); opacity: 0.9; }
+  50%  { transform: translate(-50%,-50%) scale(1.04); opacity: 0.5; }
+  100% { transform: translate(-50%,-50%) scale(0.94); opacity: 0.9; }
+}
+
+/* Winner celebration */
+@keyframes winnerPop {
+  0%   { transform: scale(0.7) translateY(20px); opacity: 0; }
+  60%  { transform: scale(1.06) translateY(-4px); opacity: 1; }
+  80%  { transform: scale(0.97) translateY(1px); }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
 }
 
 @keyframes winGlow {
-  0%, 100% { box-shadow: 0 0 20px var(--gold-glow), 0 0 40px var(--gold-glow); }
-  50%       { box-shadow: 0 0 40px rgba(201,168,76,0.5), 0 0 80px rgba(201,168,76,0.3); }
+  0%, 100% { box-shadow: 0 0 30px rgba(201,168,76,0.35), 0 0 60px rgba(201,168,76,0.15); }
+  50%       { box-shadow: 0 0 50px rgba(201,168,76,0.6),  0 0 100px rgba(201,168,76,0.25); }
 }
 
+@keyframes winnerCardReveal {
+  0%   { transform: translateY(24px) rotateX(30deg); opacity: 0; }
+  100% { transform: translateY(0)    rotateX(0deg);  opacity: 1; }
+}
+
+/* Confetti pieces */
+@keyframes confettiFall {
+  0%   { transform: translateY(-20px) rotate(0deg)   scale(1);    opacity: 1; }
+  100% { transform: translateY(160px) rotate(720deg) scale(0.4);  opacity: 0; }
+}
+
+/* Pot pop when chips added */
+@keyframes potPop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.18); }
+  70%  { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+/* Fade in upward */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* Slide up from bottom */
 @keyframes slideUp {
   from { transform: translateY(100%); opacity: 0; }
-  to   { transform: translateY(0); opacity: 1; }
+  to   { transform: translateY(0);    opacity: 1; }
 }
 
-@keyframes potPop {
+/* Shimmer text effect */
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+
+/* Gold highlight sweep on active seat */
+@keyframes seatGlow {
+  0%, 100% { border-color: rgba(201,168,76,0.45); }
+  50%       { border-color: rgba(201,168,76,0.9); }
+}
+
+/* Button press */
+@keyframes btnPress {
   0%   { transform: scale(1); }
-  50%  { transform: scale(1.15); }
+  50%  { transform: scale(0.95); }
   100% { transform: scale(1); }
 }
 
-@keyframes shimmer {
-  0%   { background-position: -200% center; }
-  100% { background-position: 200% center; }
+/* Action badge bounce in */
+@keyframes badgePop {
+  0%   { transform: scale(0) translateY(-4px); opacity: 0; }
+  70%  { transform: scale(1.15) translateY(0); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
-@keyframes activePulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%       { opacity: 0.6; transform: scale(1.05); }
+/* activePulse for waiting indicator */
+@keyframes dotPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
 }
 
-/* ─── Utility classes ────────────────────────────────────────────────────── */
+/* ─── Felt texture (CSS-only, no external image) ─────────────────────────── */
+/* Applied as a pseudo-element on .felt-surface */
+.felt-surface {
+  position: relative;
+  overflow: hidden;
+}
+
+.felt-surface::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  /* Woven fabric crosshatch */
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px, transparent 3px,
+      rgba(0,0,0,0.07) 3px, rgba(0,0,0,0.07) 4px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px, transparent 3px,
+      rgba(0,0,0,0.07) 3px, rgba(0,0,0,0.07) 4px
+    );
+  pointer-events: none;
+  z-index: 1;
+}
+
+.felt-surface::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  /* Diagonal weave overlay */
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      transparent 0px, transparent 5px,
+      rgba(255,255,255,0.018) 5px, rgba(255,255,255,0.018) 6px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      transparent 0px, transparent 5px,
+      rgba(255,255,255,0.018) 5px, rgba(255,255,255,0.018) 6px
+    );
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ─── Utility ────────────────────────────────────────────────────────────── */
 .gold-text {
   background: linear-gradient(135deg, var(--gold-dark), var(--gold-light), var(--gold));
   -webkit-background-clip: text;
@@ -155,10 +271,22 @@ body {
 }
 
 .gold-shimmer {
-  background: linear-gradient(90deg, var(--gold-dark) 0%, var(--gold-light) 40%, var(--gold) 60%, var(--gold-dark) 100%);
-  background-size: 200% auto;
+  background: linear-gradient(90deg, var(--gold-dark) 0%, var(--gold-pale) 45%, var(--gold) 55%, var(--gold-dark) 100%);
+  background-size: 250% auto;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   animation: shimmer 3s linear infinite;
+}
+
+/* ─── Mobile overrides ───────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  /* Shrink seats on very small screens */
+  .seat-panel { min-width: 72px !important; padding: 5px 7px !important; }
+  .seat-name  { font-size: 10px !important; max-width: 60px !important; }
+  .seat-chips { font-size: 9px !important; }
+}
+
+@media (max-width: 400px) {
+  .seat-panel { min-width: 58px !important; padding: 4px 5px !important; }
 }
